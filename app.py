@@ -171,12 +171,9 @@ ask = st.button("Ask →", type="primary", use_container_width=True)
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 if ask and question.strip():
-    with st.status("On it! 🔍", expanded=True) as status:
+    with st.status("On it! 🔍", expanded=False) as status:
 
-        st.write("🗂️ Figuring out where to look...")
         sections = select_sections(question)
-
-        st.write("🔗 Exploring relevant pages...")
         start_urls = [s["url"] for s in sections]
         top_pages = explore(question, start_urls, max_depth=3, top_n=3)
 
@@ -185,10 +182,7 @@ if ask and question.strip():
             st.error("Try rephrasing your question!")
             st.stop()
 
-        st.write("📄 Reading the pages...")
         pages = fetch_pages(top_pages)
-
-        st.write("✍️ Putting together your answer...")
         answer = generate_answer(question, pages)
 
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
