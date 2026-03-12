@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source venv/bin/activate && echo \"What are the tuition fees for graduate students at WPI?\" | python link_explorer.py)",
+      "Bash(source venv/bin/activate && echo \"where can i have food on-campus?\" | python link_explorer.py)"
+    ]
+  }
+}
