@@ -160,25 +160,8 @@ Groq's free tier has a rate limit of ~30 requests per minute. Under high concurr
 
 ---
 
-## 8. Sample Outputs
 
-*Screenshots to be added below*
-
-### Q: "Where can I have food on campus?"
-> *(Add screenshot here)*
-
-### Q: "What are the tuition fees for graduate students?"
-> *(Add screenshot here)*
-
-### Q: "What fun things can I do at WPI?"
-> *(Add screenshot here)*
-
-### Q: "Does WPI have a robotics research lab?"
-> *(Add screenshot here)*
-
----
-
-## 9. Project File Structure
+## 8. Project File Structure
 
 ```
 WPICHAT_BOT/
@@ -198,7 +181,7 @@ WPICHAT_BOT/
 
 ---
 
-## 10. Summary
+## 9. Summary
 
 This project demonstrates that an intelligent AI assistant for a university website can be built **without any pre-indexing, vector databases, or infrastructure** — using only LLM reasoning and live web navigation. The architecture is a form of **Agentic RAG**, where an LLM agent actively explores the information space rather than passively retrieving from a pre-built index.
 
