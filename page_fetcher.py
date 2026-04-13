@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BUCKET = "wpi-knowledge"
-MAX_CHARS = 4000  # slightly larger than before since S3 content is already clean
+MAX_CHARS = 1500  # keep total prompt within Groq free tier TPM limit
 
 _s3_client = None
 

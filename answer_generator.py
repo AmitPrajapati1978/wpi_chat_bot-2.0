@@ -37,7 +37,7 @@ def generate_answer(question: str, pages: list[dict]) -> str:
     context = "\n\n".join(context_parts)
 
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         max_tokens=1024,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
