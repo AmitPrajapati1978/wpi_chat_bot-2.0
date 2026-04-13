@@ -1,122 +1,84 @@
 import json
-import time
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
+import boto3
 import anthropic
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = "https://www.wpi.edu"
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; WPIChatBot/1.0)"}
+BUCKET = "wpi-knowledge"
 
-# URLs that are navigation/utility pages — not useful content
-BLOCKED_PATHS = {
-    "/", "/topics", "/directories", "/contact", "/offices",
-    "/parents", "/faculty-staff", "/admissions", "/academics",
-    "/about", "/news", "/student-experience", "/students",
-    "/about/locations", "/library",
-}
+# File extensions treated as direct files (not folder prefixes)
+DIRECT_FILE_EXTENSIONS = (".csv", ".json", ".md", ".txt")
 
-# In-memory cache: url -> list of links
-_page_cache: dict[str, list[dict]] = {}
+_s3_client = None
 
 
-def is_useful_link(url: str) -> bool:
-    parsed = urlparse(url)
-    if parsed.fragment and not parsed.path.strip("/"):
-        return False
-    if parsed.path in BLOCKED_PATHS:
-        return False
-    parts = [p for p in parsed.path.split("/") if p]
-    if len(parts) < 2:
-        return False
-    return True
+def get_s3():
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.getenv("AWS_REGION", "us-east-1"),
+        )
+    return _s3_client
 
 
-def fetch_links(url: str) -> list[dict]:
-    """Fetch a WPI page and return all internal links. Uses in-memory cache."""
-    if url in _page_cache:
-        return _page_cache[url]
+def list_prefix_files(prefix: str) -> list[dict]:
+    """
+    List all files in an S3 prefix (non-recursive first level).
+    Returns [{key, name}] for each real file found.
+    """
+    s3 = get_s3()
+    results = []
+    paginator = s3.get_paginator("list_objects_v2")
 
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"  [!] Could not fetch {url}: {e}")
-        _page_cache[url] = []
-        return []
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            name = key.split("/")[-1]
+            # Skip directories, hidden files, and empty placeholder files
+            if not name or name.startswith(".") or obj["Size"] == 0:
+                continue
+            results.append({"key": key, "name": name})
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    links = []
-    seen = set()
-
-    for tag in soup.find_all("a", href=True):
-        href = tag["href"].strip()
-        text = tag.get_text(strip=True)
-        full_url = urljoin(BASE_URL, href)
-        parsed = urlparse(full_url)
-
-        if (
-            parsed.netloc in ("www.wpi.edu", "wpi.edu")
-            and parsed.scheme in ("http", "https")
-            and full_url not in seen
-            and text
-            and len(text) > 2
-            and not full_url.endswith((".pdf", ".jpg", ".png", ".zip"))
-            and is_useful_link(full_url)
-        ):
-            links.append({"url": full_url, "text": text})
-            seen.add(full_url)
-
-    _page_cache[url] = links
-    return links
-
-
-def fetch_links_parallel(urls: list[str], max_workers: int = 10) -> dict[str, list[dict]]:
-    """Fetch links from multiple pages in parallel. Returns {url: links}."""
-    results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {executor.submit(fetch_links, url): url for url in urls}
-        for future in as_completed(future_to_url):
-            url = future_to_url[future]
-            results[url] = future.result()
     return results
 
 
-def rank_links_batched(question: str, all_links: list[dict], top_n: int) -> list[dict]:
+def rank_files_by_name(question: str, files: list[dict], top_n: int) -> list[dict]:
     """
-    Single Claude call to rank all links across all pages at this depth.
-    Much cheaper than one call per page.
+    One Claude Haiku call to pick the most relevant files by their names.
+    Returns top_n items from the input list.
     """
-    if not all_links:
+    if not files:
         return []
 
     client = anthropic.Anthropic()
-    candidates = all_links[:120]  # cap to keep prompt size reasonable
+    candidates = files[:150]  # cap prompt size
 
-    links_str = "\n".join(
-        f"{i+1}. [{item['text']}] {item['url']}"
+    file_list = "\n".join(
+        f"{i + 1}. {item['name']}"
         for i, item in enumerate(candidates)
     )
 
     response = client.messages.create(
         model="claude-haiku-4-5",
         max_tokens=256,
-        system="""You are a web navigation assistant for the WPI website.
-Given a user question and a list of page links, select the most relevant links likely to contain the answer.
-Return ONLY a JSON array of link numbers (1-based integers), most relevant first.
+        system="""You are a knowledge retrieval assistant for WPI's data.
+Given a user question and a list of filenames, select the most relevant files likely to answer it.
+Return ONLY a JSON array of file numbers (1-based integers), most relevant first.
 Example: [3, 7, 12]""",
         messages=[{
             "role": "user",
             "content": f"""User question: {question}
 
-Available links:
-{links_str}
+Available files:
+{file_list}
 
-Return a JSON array of the top {top_n} most relevant link numbers."""
+Return a JSON array of the top {top_n} most relevant file numbers."""
         }],
     )
 
@@ -124,7 +86,7 @@ Return a JSON array of the top {top_n} most relevant link numbers."""
     start = raw.find("[")
     end = raw.find("]", start)
     if start == -1 or end == -1:
-        return []
+        return candidates[:top_n]
 
     indices = json.loads(raw[start:end + 1])
     selected = []
@@ -135,88 +97,86 @@ Return a JSON array of the top {top_n} most relevant link numbers."""
     return selected[:top_n]
 
 
-def explore(question: str, start_urls: list[str], max_depth: int = 3, top_n: int = 3) -> list[dict]:
+def explore(question: str, start_refs: list[str], max_depth: int = 3, top_n: int = 3) -> list[dict]:
     """
-    Optimized explorer:
-    - Fetches all pages at each depth IN PARALLEL
-    - ONE Claude call per depth (not one per page)
-    - In-memory cache avoids re-fetching pages
-    - Early stopping if no new links are found
+    For each S3 reference (folder prefix or direct file key):
+      - If it's a direct file: include it as-is
+      - If it's a folder with ≤ 8 files: include all files
+      - If it's a folder with many files: ask Claude to pick the most relevant by filename
+
+    Returns list of {url, text, key} for use by fetch_pages().
+    url  = source URL (extracted later from file content, or S3 key as fallback)
+    text = display name
+    key  = S3 key to read
     """
-    frontier_urls = list(start_urls)
-    visited = set(start_urls)
     all_candidates = []
 
-    for depth in range(1, max_depth + 1):
-        t0 = time.time()
-        print(f"\n  [Depth {depth}] Fetching {len(frontier_urls)} page(s) in parallel...")
+    for ref in start_refs:
+        if ref.endswith(DIRECT_FILE_EXTENSIONS):
+            # Single file — include directly
+            name = ref.split("/")[-1]
+            all_candidates.append({"key": ref, "name": name})
+        else:
+            # Folder — list files and rank
+            files = list_prefix_files(ref)
+            if not files:
+                continue
 
-        # Step A: Fetch all pages at this depth in parallel
-        page_links = fetch_links_parallel(frontier_urls)
+            if len(files) <= 8:
+                all_candidates.extend(files)
+            else:
+                picked = rank_files_by_name(question, files, top_n=top_n * 3)
+                all_candidates.extend(picked)
 
-        # Step B: Collect all fresh (unvisited) links across all pages
-        fresh_links = []
-        seen_this_depth = set()
-        for url, links in page_links.items():
-            for link in links:
-                if link["url"] not in visited and link["url"] not in seen_this_depth:
-                    fresh_links.append(link)
-                    seen_this_depth.add(link["url"])
-
-        print(f"    Total fresh links: {len(fresh_links)}")
-
-        if not fresh_links:
-            print("  No new links found. Stopping early.")
-            break
-
-        # Step C: ONE Claude call to rank all fresh links for this depth
-        top = rank_links_batched(question, fresh_links, top_n=top_n * len(frontier_urls))
-        print(f"    Claude selected {len(top)} link(s) in {time.time()-t0:.1f}s:")
-        for t in top:
-            print(f"      • {t['text']}  ({t['url']})")
-            visited.add(t["url"])
-
-        all_candidates.extend(top)
-        frontier_urls = [t["url"] for t in top]
-
-        # Early stopping: if we have confident matches and are deep enough
-        if depth >= 2 and len(top) <= 2:
-            print("  Few links selected — likely reached content pages. Stopping early.")
-            break
-
-    # Final ranking: one Claude call to pick top 5 from all candidates
     if not all_candidates:
         return []
 
-    print(f"\n  Final ranking across {len(all_candidates)} candidates...")
-    unique = {p["url"]: p for p in all_candidates}
-    return rank_links_batched(question, list(unique.values()), top_n=5)
+    # Deduplicate by key
+    seen = {}
+    for item in all_candidates:
+        seen[item["key"]] = item
+    unique = list(seen.values())
+
+    # Final ranking across everything if we have more than we need
+    if len(unique) > top_n * 2:
+        final = rank_files_by_name(question, unique, top_n=top_n * 2)
+    else:
+        final = unique
+
+    # Shape output to match the interface fetch_pages() + app.py expect:
+    # {url, text, key}
+    return [
+        {
+            "url": item["key"],   # will be replaced with source_url after fetch
+            "text": item["name"].replace("_", " ").replace("-", " ").rsplit(".", 1)[0],
+            "key": item["key"],
+        }
+        for item in final
+    ]
 
 
 if __name__ == "__main__":
     from section_selector import select_sections
 
-    print("WPI Link Explorer — type a question, Ctrl+C to quit\n")
+    print("WPI S3 Explorer — type a question, Ctrl+C to quit\n")
     while True:
         try:
             question = input("Your question: ").strip()
             if not question:
                 continue
 
-            print("\n--- Step 1: Selecting top sections ---")
+            print("\n--- Step 1: Selecting top categories ---")
             sections = select_sections(question)
             for i, s in enumerate(sections, 1):
                 print(f"  {i}. [{s['section_key']}] {s['url']}")
 
-            print("\n--- Step 2: Exploring links ---")
-            t0 = time.time()
-            final_pages = explore(question, [s["url"] for s in sections])
-            print(f"\n  Done in {time.time()-t0:.1f}s")
+            print("\n--- Step 2: Finding relevant files ---")
+            pages = explore(question, [s["url"] for s in sections])
 
-            print("\n--- Final pages to read ---")
-            for i, page in enumerate(final_pages, 1):
-                print(f"  {i}. {page['text']}")
-                print(f"     {page['url']}")
+            print(f"\n  Top {len(pages)} files:")
+            for i, p in enumerate(pages, 1):
+                print(f"  {i}. {p['text']}")
+                print(f"     {p['key']}")
             print()
 
         except KeyboardInterrupt:

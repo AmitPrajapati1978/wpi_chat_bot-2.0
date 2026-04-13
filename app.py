@@ -193,7 +193,12 @@ if ask and question.strip():
 
     with st.expander("🔗 Sources used"):
         for p in top_pages:
-            st.markdown(f"- [{p['text']}]({p['url']})")
+            url = p.get("url", "")
+            label = p.get("text", url)
+            if url.startswith("http"):
+                st.markdown(f"- [{label}]({url})")
+            else:
+                st.markdown(f"- {label}")
 
 elif ask and not question.strip():
     st.warning("Hey, don't forget to type your question! 😄")
