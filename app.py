@@ -169,8 +169,38 @@ question = st.text_input(
 
 ask = st.button("Ask →", type="primary", use_container_width=True)
 
+# ── Meta question handler ──────────────────────────────────────────────────────
+META_KEYWORDS = ("what can you", "what do you know", "what domains", "what topics",
+                 "what questions", "what can i ask", "help me", "what are you")
+
+META_ANSWER = """Here's what I can help you with at WPI:
+
+- **Degree programs** — every major, minor, and certificate (undergrad + grad)
+- **Course catalog** — 1,320 courses with descriptions and prerequisites
+- **Student clubs & orgs** — all 252 clubs from myWPI
+- **Career outcomes** — average salaries by program, employment rates (Class of 2025)
+- **Job & career outlook** — BLS data for 343 career paths linked to WPI degrees
+- **Student voices** — first-hand stories from current and former students
+- **Research areas** — AI, bioengineering, cybersecurity, sustainability, and more
+- **Labs & facilities** — 1,000 campus labs, makerspaces, and research centers
+- **IQP / MQP projects** — project titles, sponsors, and global project centers
+- **Departments & offices** — all 39 departments and 63 campus offices
+
+Things I **can't** reliably answer yet: tuition costs, housing/dining details, admissions deadlines, athletics, or news & events — those aren't in my data source yet.
+
+Try asking something like:
+- *"What is the average salary for a WPI CS graduate?"*
+- *"What robotics clubs can I join?"*
+- *"What does the AI master's program look like?"*"""
+
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 if ask and question.strip():
+    q_lower = question.strip().lower()
+    if any(kw in q_lower for kw in META_KEYWORDS):
+        st.markdown("---")
+        st.markdown(f'<div class="answer-box">{META_ANSWER}</div>', unsafe_allow_html=True)
+        st.stop()
+
     with st.status("On it! 🔍", expanded=False) as status:
 
         sections = select_sections(question)
