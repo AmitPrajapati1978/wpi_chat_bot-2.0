@@ -5,3 +5,4 @@ requests==2.32.5
 beautifulsoup4==4.14.3
 python-dotenv==1.2.1
 boto3==1.38.0
+markdown==3.8

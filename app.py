@@ -1,4 +1,5 @@
 import base64
+import markdown as md
 import streamlit as st
 
 def get_base64_image(path: str) -> str:
@@ -198,7 +199,7 @@ if ask and question.strip():
     q_lower = question.strip().lower()
     if any(kw in q_lower for kw in META_KEYWORDS):
         st.markdown("---")
-        st.markdown(f'<div class="answer-box">{META_ANSWER}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="answer-box">{md.markdown(META_ANSWER)}</div>', unsafe_allow_html=True)
         st.stop()
 
     with st.status("On it! 🔍", expanded=False) as status:
@@ -218,7 +219,7 @@ if ask and question.strip():
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
 
     st.markdown("---")
-    st.markdown(f'<div class="answer-box">{answer}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="answer-box">{md.markdown(answer)}</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     with st.expander("🔗 Sources used"):
