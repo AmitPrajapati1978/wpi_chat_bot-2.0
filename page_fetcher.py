@@ -13,6 +13,7 @@ BUCKET = "wpi-knowledge"
 MAX_CHARS = 1500  # keep total prompt within Groq free tier TPM limit
 
 _s3_client = None
+_nid_to_url: dict[str, str] = {}  # nid → real wpi.edu alias URL
 
 
 def get_s3():
@@ -25,6 +26,24 @@ def get_s3():
             region_name=os.getenv("AWS_REGION", "us-east-1"),
         )
     return _s3_client
+
+
+def _get_nid_url_map() -> dict[str, str]:
+    """Lazy-load nid → wpi.edu alias from track-data.csv (cached after first call)."""
+    global _nid_to_url
+    if _nid_to_url:
+        return _nid_to_url
+    try:
+        raw = get_s3().get_object(Bucket=BUCKET, Key="data/drupal/track-data.csv")["Body"].read().decode()
+        reader = csv.DictReader(io.StringIO(raw))
+        for row in reader:
+            nid = row.get("nid", "").strip()
+            alias = row.get("alias", "").strip()
+            if nid and alias and alias.startswith("http"):
+                _nid_to_url[nid] = alias
+    except Exception:
+        pass
+    return _nid_to_url
 
 
 def _strip_html(html: str) -> str:
@@ -64,15 +83,19 @@ def _parse_markdown(key: str, raw: str) -> dict:
     """Parse a markdown file, extracting frontmatter for source URL and title."""
     meta, body = _extract_frontmatter(raw)
 
-    source_url = meta.get("source_url", "")
     title = meta.get("title", key.split("/")[-1].replace("_", " ").rsplit(".", 1)[0])
+
+    # Prefer the real wpi.edu alias URL over the internal staging source_url
+    nid = meta.get("nid", "").strip()
+    real_url = _get_nid_url_map().get(nid, "") if nid else ""
+    source_url = real_url or meta.get("source_url", "") or key
 
     text = body
     if len(text) > MAX_CHARS:
         text = text[:MAX_CHARS] + "\n... [content trimmed]"
 
     return {
-        "url": source_url if source_url else key,
+        "url": source_url,
         "title": title,
         "text": text,
         "error": None,
