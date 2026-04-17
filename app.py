@@ -127,6 +127,15 @@ h1, h2, h3 {
     line-height: 1.7;
 }
 
+.answer-box a {
+    color: #7ec8e3 !important;
+    text-decoration: underline !important;
+}
+
+.answer-box a:hover {
+    color: #ffffff !important;
+}
+
 /* Expander */
 [data-testid="stExpander"] {
     background: rgba(255,255,255,0.07) !important;
