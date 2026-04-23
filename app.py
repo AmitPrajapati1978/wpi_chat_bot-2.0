@@ -102,6 +102,11 @@ h1, h2, h3 {
     border-color: #AC2B37 !important;
     box-shadow: 0 0 0 2px rgba(172,43,55,0.3) !important;
     background: rgba(20, 20, 20, 0.9) !important;
+    caret-color: #ffffff !important;
+}
+
+[data-testid="stTextInput"] input {
+    caret-color: #ffffff !important;
 }
 
 /* Primary button — WPI crimson */
