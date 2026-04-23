@@ -163,6 +163,17 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<script>
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        const input = window.parent.document.querySelector('input[type="text"]');
+        if (input) input.focus();
+    }, 300);
+});
+</script>
+""", unsafe_allow_html=True)
+
 # Inject background image separately to avoid f-string/CSS brace conflicts
 st.markdown(
     f'<style>[data-testid="stAppViewContainer"] {{ background-image: url("data:image/jpeg;base64,{bg_image}"); }}</style>',
