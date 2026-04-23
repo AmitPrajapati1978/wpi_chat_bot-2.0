@@ -118,7 +118,7 @@ def _parse_csv(key: str, raw: str) -> dict:
     if not rows:
         return {"url": key, "title": title, "text": "No data found.", "error": None}
 
-    # Fields to skip (internal Drupal IDs, timestamps, irrelevant metadata)
+    # Fields to skip (internal IDs, timestamps, PII, irrelevant metadata)
     skip_fields = {
         "nid", "uid", "created", "changed", "status",
         "field_image_target_id", "field_tags_target_id",
@@ -128,6 +128,9 @@ def _parse_csv(key: str, raw: str) -> dict:
         "field_number_of_announcements_value", "field_number_of_articles_value",
         "field_number_of_events_value", "field_published_at__value",
         "field_two_columns_checkbox_value", "field_two_columns_events_value",
+        # Student PII — names and IDs from project CSVs
+        "Creator", "Identifier", "Orcid", "Rights Statement", "License",
+        "Date created", "Model",
     }
 
     # HTML fields to strip tags from

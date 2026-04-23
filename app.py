@@ -253,7 +253,7 @@ if ask and question.strip():
     with st.expander("🔗 Sources used"):
         for p in top_pages:
             url = p.get("url", "")
-            label = p.get("text", url)
+            label = p.get("title", url)
             if url.startswith("http"):
                 st.markdown(f"- [{label}]({url})")
             else:
