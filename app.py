@@ -1,4 +1,5 @@
 import base64
+import time
 import markdown as md
 import streamlit as st
 
@@ -11,6 +12,8 @@ from section_selector import select_sections
 from link_explorer import explore
 from page_fetcher import fetch_pages
 from answer_generator import generate_answer
+from semantic_cache import find_cached_answer
+from logger import log_interaction
 
 
 st.set_page_config(
@@ -211,6 +214,19 @@ if ask and question.strip():
         st.markdown(f'<div class="answer-box">{md.markdown(META_ANSWER)}</div>', unsafe_allow_html=True)
         st.stop()
 
+    start_time = time.time()
+
+    # ── Cache check ────────────────────────────────────────────────────────────
+    cached_answer = find_cached_answer(question)
+    if cached_answer:
+        elapsed = int((time.time() - start_time) * 1000)
+        log_interaction(question, cached_answer, cache_hit=True, response_time_ms=elapsed)
+        st.markdown("---")
+        st.markdown(f'<div class="answer-box">{md.markdown(cached_answer)}</div>', unsafe_allow_html=True)
+        st.caption("⚡ Answered instantly from cache")
+        st.stop()
+
+    # ── Full pipeline ──────────────────────────────────────────────────────────
     with st.status("On it! 🔍", expanded=False) as status:
 
         sections = select_sections(question)
@@ -226,6 +242,9 @@ if ask and question.strip():
         answer = generate_answer(question, pages)
 
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
+
+    elapsed = int((time.time() - start_time) * 1000)
+    log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed)
 
     st.markdown("---")
     st.markdown(f'<div class="answer-box">{md.markdown(answer)}</div>', unsafe_allow_html=True)
