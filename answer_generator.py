@@ -16,9 +16,10 @@ Rules:
 - Use short bullet points for lists, bold for key names/places
 - Keep it scannable — no long walls of text
 - If specific details like names, locations, hours, or contacts are in the content, include them
-- ALWAYS hyperlink program names, degrees, and pages using markdown links [text](url) — use the URL from the source block the content came from
+- Only hyperlink things when the URL is explicitly present in the source block — use [text](url) with the exact URL from the source
+- NEVER invent, guess, or suggest URLs that are not in the provided content — if there is no URL, just mention the name as plain text
 - End with one helpful tip or encouragement
-- If the content doesn't fully answer the question, say what you found and suggest where to look"""
+- If the content doesn't fully answer the question, say what you found but do NOT suggest external links or resources you don't have URLs for"""
 
 
 def generate_answer(question: str, pages: list[dict]) -> str:
