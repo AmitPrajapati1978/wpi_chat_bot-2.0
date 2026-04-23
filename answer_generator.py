@@ -1,4 +1,5 @@
-from groq import Groq
+import time
+from groq import Groq, RateLimitError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,21 +37,24 @@ def generate_answer(question: str, pages: list[dict]) -> str:
     if not context_parts:
         return "Sorry, I couldn't retrieve any content from the WPI website to answer your question."
 
-    context = "\n\n".join(context_parts)
+    context = "\n\n".join(context_parts)[:6000]
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        max_tokens=1024,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"""Question: {question}
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Question: {question}\n\nHere is content retrieved from the WPI website:\n\n{context}\n\nPlease answer the question based on this content."}
+    ]
 
-Here is content retrieved from the WPI website:
+    for model in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=1024,
+                messages=messages,
+            )
+            return response.choices[0].message.content.strip()
+        except RateLimitError:
+            if model == "llama-3.1-8b-instant":
+                raise
+            time.sleep(2)
 
-{context}
-
-Please answer the question based on this content."""}
-        ],
-    )
-
-    return response.choices[0].message.content.strip()
+    return "Sorry, the AI service is busy right now. Please try again in a moment."
