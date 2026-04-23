@@ -14,13 +14,14 @@ def _get_supabase():
     return _client
 
 
-def log_interaction(question: str, answer: str, cache_hit: bool, response_time_ms: int):
+def log_interaction(question: str, answer: str, cache_hit: bool, response_time_ms: int, sources: list = None):
     try:
         _get_supabase().table("logs").insert({
             "question": question,
             "answer": answer,
             "cache_hit": cache_hit,
             "response_time_ms": response_time_ms,
+            "sources": [{"title": s.get("title"), "url": s.get("url")} for s in sources] if sources else None,
         }).execute()
     except Exception as e:
         print(f"[logger] Failed to log: {e}")

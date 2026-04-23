@@ -244,7 +244,7 @@ if ask and question.strip():
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
 
     elapsed = int((time.time() - start_time) * 1000)
-    log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed)
+    log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed, sources=pages)
 
     st.markdown("---")
     st.markdown(f'<div class="answer-box">{md.markdown(answer)}</div>', unsafe_allow_html=True)
