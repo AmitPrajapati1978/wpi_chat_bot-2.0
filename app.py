@@ -265,8 +265,12 @@ if ask and question.strip():
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
 
     st.markdown("---")
-    with st.container():
-        answer = st.write_stream(stream_answer(question, pages))
+    placeholder = st.empty()
+    answer = ""
+    for chunk in stream_answer(question, pages):
+        answer += chunk
+        placeholder.markdown(answer + "▌")
+    placeholder.markdown(answer)
 
     elapsed = int((time.time() - start_time) * 1000)
     log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed, sources=pages)
