@@ -125,7 +125,7 @@ def explore(question: str, start_refs: list[str], max_depth: int = 3, top_n: int
             if len(files) <= 8:
                 all_candidates.extend(files)
             else:
-                picked = rank_files_by_name(question, files, top_n=top_n * 3)
+                picked = rank_files_by_name(question, files, top_n=top_n * 2)
                 all_candidates.extend(picked)
 
     if not all_candidates:
@@ -138,8 +138,8 @@ def explore(question: str, start_refs: list[str], max_depth: int = 3, top_n: int
     unique = list(seen.values())
 
     # Final ranking across everything if we have more than we need
-    if len(unique) > top_n * 2:
-        final = rank_files_by_name(question, unique, top_n=top_n * 2)
+    if len(unique) > top_n:
+        final = rank_files_by_name(question, unique, top_n=top_n)
     else:
         final = unique
 
