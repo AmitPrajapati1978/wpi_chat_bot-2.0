@@ -94,7 +94,7 @@ h1, h2, h3 {
 [data-testid="stBottom"] > div > div {
     background: rgba(0,0,0,0.6) !important;
     backdrop-filter: blur(12px) !important;
-    border-top: 1px solid rgba(172,43,55,0.4) !important;
+    border-top: none !important;
 }
 
 .stChatInputContainer,
@@ -109,6 +109,10 @@ h1, h2, h3 {
     color: #ffffff !important;
     caret-color: #ffffff !important;
     font-size: 1rem !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder {
+    color: rgba(255,255,255,0.45) !important;
 }
 
 [data-testid="stChatInput"] textarea:focus {
@@ -144,7 +148,6 @@ st.markdown(
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown('<div class="wpi-title">🦙 WPI AI Assistant</div>', unsafe_allow_html=True)
 st.markdown('<div class="wpi-subtitle">Your friendly guide to everything Worcester Polytechnic Institute</div>', unsafe_allow_html=True)
-st.markdown("---")
 
 # ── Session state init ─────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
@@ -256,15 +259,6 @@ if raw_input := st.chat_input("Ask me anything about WPI..."):
             placeholder.markdown(answer + "▌")
             time.sleep(0.02)
         placeholder.markdown(answer)
-
-        with st.expander("🔗 Sources used"):
-            for p in top_pages:
-                url = p.get("url", "")
-                label = p.get("title", url)
-                if url.startswith("http"):
-                    st.markdown(f"- [{label}]({url})")
-                else:
-                    st.markdown(f"- {label}")
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
