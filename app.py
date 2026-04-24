@@ -2,6 +2,7 @@ import base64
 import time
 import markdown as md
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor
 
 def get_base64_image(path: str) -> str:
     with open(path, "rb") as f:
@@ -231,16 +232,20 @@ if ask and question.strip():
         st.markdown(f'<div class="answer-box">{md.markdown(META_ANSWER)}</div>', unsafe_allow_html=True)
         st.stop()
 
-    # ── Guardrail ──────────────────────────────────────────────────────────────
-    if not check_guardrail(question):
+    start_time = time.time()
+
+    # ── Guardrail + section selector + cache check in parallel ─────────────────
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_guardrail = ex.submit(check_guardrail, question)
+        f_sections  = ex.submit(select_sections, question)
+        f_cache     = ex.submit(find_cached_answer, question)
+
+    if not f_guardrail.result():
         st.markdown("---")
         st.markdown('<div class="answer-box">⚠️ I\'m only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!</div>', unsafe_allow_html=True)
         st.stop()
 
-    start_time = time.time()
-
-    # ── Cache check ────────────────────────────────────────────────────────────
-    cached_answer = find_cached_answer(question)
+    cached_answer = f_cache.result()
     if cached_answer:
         elapsed = int((time.time() - start_time) * 1000)
         log_interaction(question, cached_answer, cache_hit=True, response_time_ms=elapsed)
@@ -250,9 +255,9 @@ if ask and question.strip():
         st.stop()
 
     # ── Full pipeline ──────────────────────────────────────────────────────────
-    with st.status("On it! 🔍", expanded=False) as status:
+    with st.status("Looking that up for you! 📚", expanded=False) as status:
 
-        sections = select_sections(question)
+        sections = f_sections.result()
         start_urls = [s["url"] for s in sections]
         top_pages = explore(question, start_urls, max_depth=3, top_n=3)
 
