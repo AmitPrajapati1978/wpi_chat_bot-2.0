@@ -13,6 +13,7 @@ from link_explorer import explore
 from page_fetcher import fetch_pages
 from answer_generator import generate_answer
 from semantic_cache import find_cached_answer
+from guardrail import check_guardrail
 from logger import log_interaction
 
 
@@ -228,6 +229,12 @@ if ask and question.strip():
     if any(kw in q_lower for kw in META_KEYWORDS):
         st.markdown("---")
         st.markdown(f'<div class="answer-box">{md.markdown(META_ANSWER)}</div>', unsafe_allow_html=True)
+        st.stop()
+
+    # ── Guardrail ──────────────────────────────────────────────────────────────
+    if not check_guardrail(question):
+        st.markdown("---")
+        st.markdown('<div class="answer-box">⚠️ I\'m only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!</div>', unsafe_allow_html=True)
         st.stop()
 
     start_time = time.time()
