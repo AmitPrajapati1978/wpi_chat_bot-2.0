@@ -270,6 +270,7 @@ if ask and question.strip():
     for chunk in stream_answer(question, pages):
         answer += chunk
         placeholder.markdown(answer + "▌")
+        time.sleep(0.02)
     placeholder.markdown(answer)
 
     elapsed = int((time.time() - start_time) * 1000)
