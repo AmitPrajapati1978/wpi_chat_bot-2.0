@@ -234,18 +234,14 @@ if ask and question.strip():
 
     start_time = time.time()
 
-    # ── Guardrail + section selector + cache check in parallel ─────────────────
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        f_guardrail = ex.submit(check_guardrail, question)
-        f_sections  = ex.submit(select_sections, question)
-        f_cache     = ex.submit(find_cached_answer, question)
-
-    if not f_guardrail.result():
+    # ── Guardrail first — block non-WPI questions before any pipeline cost ─────
+    if not check_guardrail(question):
         st.markdown("---")
         st.markdown('<div class="answer-box">⚠️ I\'m only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!</div>', unsafe_allow_html=True)
         st.stop()
 
-    cached_answer = f_cache.result()
+    # ── Cache check — return instantly if we have a match ─────────────────────
+    cached_answer = find_cached_answer(question)
     if cached_answer:
         elapsed = int((time.time() - start_time) * 1000)
         log_interaction(question, cached_answer, cache_hit=True, response_time_ms=elapsed)
@@ -254,10 +250,10 @@ if ask and question.strip():
         st.caption("⚡ Answered instantly from cache")
         st.stop()
 
-    # ── Full pipeline ──────────────────────────────────────────────────────────
+    # ── Full pipeline — only runs on cache miss ────────────────────────────────
     with st.status("Looking that up for you! 📚", expanded=False) as status:
 
-        sections = f_sections.result()
+        sections = select_sections(question)
         start_urls = [s["url"] for s in sections]
         top_pages = explore(question, start_urls, max_depth=3, top_n=3)
 
