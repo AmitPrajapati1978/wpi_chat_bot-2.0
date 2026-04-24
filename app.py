@@ -89,11 +89,17 @@ h1, h2, h3 {
 }
 
 /* Chat input bar at bottom */
-[data-testid="stBottom"] {
-    background: rgba(0,0,0,0.5) !important;
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div,
+[data-testid="stBottom"] > div > div {
+    background: rgba(0,0,0,0.6) !important;
     backdrop-filter: blur(12px) !important;
     border-top: 1px solid rgba(172,43,55,0.4) !important;
-    padding: 0.75rem 1rem !important;
+}
+
+.stChatInputContainer,
+.stChatInputContainer > div {
+    background: transparent !important;
 }
 
 [data-testid="stChatInput"] textarea {
