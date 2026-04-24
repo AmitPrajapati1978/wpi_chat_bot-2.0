@@ -11,7 +11,7 @@ bg_image = get_base64_image("resources/wpi.jpg")
 from section_selector import select_sections
 from link_explorer import explore
 from page_fetcher import fetch_pages
-from answer_generator import generate_answer
+from answer_generator import generate_answer, stream_answer
 from semantic_cache import find_cached_answer
 from guardrail import check_guardrail
 from logger import log_interaction
@@ -262,15 +262,14 @@ if ask and question.strip():
             st.stop()
 
         pages = fetch_pages(top_pages)
-        answer = generate_answer(question, pages)
-
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
+
+    st.markdown("---")
+    with st.container():
+        answer = st.write_stream(stream_answer(question, pages))
 
     elapsed = int((time.time() - start_time) * 1000)
     log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed, sources=pages)
-
-    st.markdown("---")
-    st.markdown(f'<div class="answer-box">{md.markdown(answer)}</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     with st.expander("🔗 Sources used"):

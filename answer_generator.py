@@ -24,9 +24,6 @@ Rules:
 
 
 def generate_answer(question: str, pages: list[dict]) -> str:
-    """
-    Given a question and fetched page contents, use Groq (free) to generate an answer.
-    """
     client = Groq()
 
     context_parts = []
@@ -40,7 +37,6 @@ def generate_answer(question: str, pages: list[dict]) -> str:
         return "Sorry, I couldn't retrieve any content from the WPI website to answer your question."
 
     context = "\n\n".join(context_parts)[:6000]
-
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Question: {question}\n\nHere is content retrieved from the WPI website:\n\n{context}\n\nPlease answer the question based on this content."}
@@ -60,3 +56,44 @@ def generate_answer(question: str, pages: list[dict]) -> str:
             time.sleep(2)
 
     return "Sorry, the AI service is busy right now. Please try again in a moment."
+
+
+def stream_answer(question: str, pages: list[dict]):
+    """Yields text chunks for streaming display."""
+    client = Groq()
+
+    context_parts = []
+    for page in pages:
+        if page["text"]:
+            context_parts.append(
+                f"--- Source: {page['title']} ---\nURL: {page['url']}\n\n{page['text']}"
+            )
+
+    if not context_parts:
+        yield "Sorry, I couldn't retrieve any content from the WPI website to answer your question."
+        return
+
+    context = "\n\n".join(context_parts)[:6000]
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Question: {question}\n\nHere is content retrieved from the WPI website:\n\n{context}\n\nPlease answer the question based on this content."}
+    ]
+
+    for model in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=1024,
+                messages=messages,
+                stream=True,
+            )
+            for chunk in response:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+            return
+        except RateLimitError:
+            if model == "llama-3.1-8b-instant":
+                yield "Sorry, the AI service is busy right now. Please try again in a moment."
+                return
+            time.sleep(2)
