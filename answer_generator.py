@@ -59,8 +59,8 @@ def generate_answer(question: str, pages: list[dict]) -> str:
     return "Sorry, the AI service is busy right now. Please try again in a moment."
 
 
-def stream_answer(question: str, pages: list[dict]):
-    """Yields text chunks for streaming display."""
+def stream_answer(question: str, pages: list[dict], history: list[dict] = None):
+    """Yields text chunks for streaming display. Accepts optional conversation history."""
     client = Groq()
 
     context_parts = []
@@ -75,10 +75,16 @@ def stream_answer(question: str, pages: list[dict]):
         return
 
     context = "\n\n".join(context_parts)[:6000]
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Question: {question}\n\nHere is content retrieved from the WPI website:\n\n{context}\n\nPlease answer the question based on this content."}
-    ]
+
+    # Build messages with optional conversation history for context
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        for msg in history[-6:]:  # last 3 turns
+            messages.append({"role": msg["role"], "content": msg["content"][:500]})
+    messages.append({
+        "role": "user",
+        "content": f"Question: {question}\n\nHere is content retrieved from the WPI website:\n\n{context}\n\nPlease answer the question based on this content."
+    })
 
     for model in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
         try:

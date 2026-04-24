@@ -1,8 +1,7 @@
 import base64
 import time
-import markdown as md
+import uuid
 import streamlit as st
-from concurrent.futures import ThreadPoolExecutor
 
 def get_base64_image(path: str) -> str:
     with open(path, "rb") as f:
@@ -12,10 +11,11 @@ bg_image = get_base64_image("resources/wpi.jpg")
 from section_selector import select_sections
 from link_explorer import explore
 from page_fetcher import fetch_pages
-from answer_generator import generate_answer, stream_answer
+from answer_generator import stream_answer
 from semantic_cache import find_cached_answer
 from guardrail import check_guardrail
 from logger import log_interaction
+from query_rewriter import rewrite_query
 
 
 st.set_page_config(
@@ -27,10 +27,8 @@ st.set_page_config(
 # ── WPI Theme ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Import font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-/* Background image from WPI website */
 [data-testid="stAppViewContainer"] {
     background-image: url("PLACEHOLDER_BG");
     background-size: cover;
@@ -39,7 +37,6 @@ st.markdown("""
     font-family: 'Inter', sans-serif;
 }
 
-/* Dark overlay so text is readable */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
@@ -49,7 +46,6 @@ st.markdown("""
     z-index: 0;
 }
 
-/* Main content card */
 [data-testid="stMainBlockContainer"] {
     position: relative;
     z-index: 1;
@@ -61,18 +57,15 @@ st.markdown("""
     border: 1px solid rgba(255,255,255,0.15);
 }
 
-/* All text white */
 html, body, [class*="css"], p, span, label, div {
     color: #ffffff !important;
 }
 
-/* Title */
 h1, h2, h3 {
     color: #ffffff !important;
     font-weight: 700 !important;
 }
 
-/* Crimson accent on title */
 .wpi-title {
     color: #AC2B37 !important;
     font-size: 2.4rem;
@@ -86,64 +79,24 @@ h1, h2, h3 {
     margin-bottom: 1.5rem;
 }
 
-/* Input box */
-[data-testid="stTextInput"] input {
+/* Chat messages */
+[data-testid="stChatMessage"] {
+    background: rgba(255,255,255,0.07) !important;
+    border-radius: 12px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+[data-testid="stChatInput"] textarea {
     background: rgba(20, 20, 20, 0.75) !important;
     border: 1px solid rgba(172, 43, 55, 0.6) !important;
     border-radius: 10px !important;
     color: #ffffff !important;
-    font-size: 1rem !important;
-    padding: 0.6rem 1rem !important;
+    caret-color: #ffffff !important;
 }
 
-[data-testid="stTextInput"] input::placeholder {
-    color: rgba(255,255,255,0.45) !important;
-}
-
-[data-testid="stTextInput"] input:focus {
+[data-testid="stChatInput"] textarea:focus {
     border-color: #AC2B37 !important;
     box-shadow: 0 0 0 2px rgba(172,43,55,0.3) !important;
-    background: rgba(20, 20, 20, 0.9) !important;
-    caret-color: #ffffff !important;
-}
-
-[data-testid="stTextInput"] input {
-    caret-color: #ffffff !important;
-}
-
-/* Primary button — WPI crimson */
-[data-testid="stButton"] button[kind="primary"] {
-    background: #AC2B37 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    font-size: 1rem !important;
-    padding: 0.6rem !important;
-    transition: background 0.2s;
-}
-
-[data-testid="stButton"] button[kind="primary"]:hover {
-    background: #8a2230 !important;
-}
-
-/* Answer box */
-.answer-box {
-    background: rgba(255,255,255,0.1);
-    border-left: 4px solid #AC2B37;
-    border-radius: 10px;
-    padding: 1.2rem 1.5rem;
-    margin-top: 1rem;
-    line-height: 1.7;
-}
-
-.answer-box a {
-    color: #7ec8e3 !important;
-    text-decoration: underline !important;
-}
-
-.answer-box a:hover {
-    color: #ffffff !important;
 }
 
 /* Expander */
@@ -160,28 +113,14 @@ h1, h2, h3 {
     border-radius: 10px !important;
 }
 
-/* Divider */
 hr {
     border-color: rgba(255,255,255,0.15) !important;
 }
 
-/* Hide Streamlit branding */
 #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<script>
-window.addEventListener('load', function() {
-    setTimeout(function() {
-        const input = window.parent.document.querySelector('input[type="text"]');
-        if (input) input.focus();
-    }, 300);
-});
-</script>
-""", unsafe_allow_html=True)
-
-# Inject background image separately to avoid f-string/CSS brace conflicts
 st.markdown(
     f'<style>[data-testid="stAppViewContainer"] {{ background-image: url("data:image/jpeg;base64,{bg_image}"); }}</style>',
     unsafe_allow_html=True,
@@ -192,15 +131,15 @@ st.markdown('<div class="wpi-title">🦙 WPI AI Assistant</div>', unsafe_allow_h
 st.markdown('<div class="wpi-subtitle">Your friendly guide to everything Worcester Polytechnic Institute</div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ── Input ──────────────────────────────────────────────────────────────────────
-question = st.text_input(
-    label="What do you want to know?",
-    placeholder="e.g. What fun things can I do? Where can I eat? What are tuition fees?",
-)
+# ── Session state init ─────────────────────────────────────────────────────────
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+if "turn_number" not in st.session_state:
+    st.session_state.turn_number = 0
 
-ask = st.button("Ask →", type="primary", use_container_width=True)
-
-# ── Meta question handler ──────────────────────────────────────────────────────
+# ── Meta answer ────────────────────────────────────────────────────────────────
 META_KEYWORDS = ("what can you", "what do you know", "what domains", "what topics",
                  "what questions", "what can i ask", "help me", "what are you")
 
@@ -224,38 +163,66 @@ Try asking something like:
 - *"What robotics clubs can I join?"*
 - *"What does the AI master's program look like?"*"""
 
-# ── Pipeline ───────────────────────────────────────────────────────────────────
-if ask and question.strip():
-    q_lower = question.strip().lower()
-    if any(kw in q_lower for kw in META_KEYWORDS):
-        st.markdown("---")
-        st.markdown(f'<div class="answer-box">{md.markdown(META_ANSWER)}</div>', unsafe_allow_html=True)
+# ── Render chat history ────────────────────────────────────────────────────────
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# ── Chat input ─────────────────────────────────────────────────────────────────
+if raw_input := st.chat_input("Ask me anything about WPI..."):
+
+    # Show user message
+    with st.chat_message("user"):
+        st.markdown(raw_input)
+    st.session_state.messages.append({"role": "user", "content": raw_input})
+
+    # ── Meta check ────────────────────────────────────────────────────────────
+    if any(kw in raw_input.strip().lower() for kw in META_KEYWORDS):
+        with st.chat_message("assistant"):
+            st.markdown(META_ANSWER)
+        st.session_state.messages.append({"role": "assistant", "content": META_ANSWER})
         st.stop()
 
     start_time = time.time()
 
-    # ── Guardrail first — block non-WPI questions before any pipeline cost ─────
-    if not check_guardrail(question):
-        st.markdown("---")
-        st.markdown('<div class="answer-box">⚠️ I\'m only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!</div>', unsafe_allow_html=True)
+    # ── Rewrite query if follow-up ─────────────────────────────────────────────
+    history_so_far = st.session_state.messages[:-1]  # exclude current message
+    rewritten = rewrite_query(history_so_far, raw_input)
+
+    # ── Guardrail ─────────────────────────────────────────────────────────────
+    if not check_guardrail(rewritten):
+        msg = "⚠️ I'm only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!"
+        with st.chat_message("assistant"):
+            st.markdown(msg)
+        st.session_state.messages.append({"role": "assistant", "content": msg})
         st.stop()
 
-    # ── Cache check — return instantly if we have a match ─────────────────────
-    cached_answer = find_cached_answer(question)
+    # ── Cache check ───────────────────────────────────────────────────────────
+    cached_answer = find_cached_answer(rewritten)
     if cached_answer:
         elapsed = int((time.time() - start_time) * 1000)
-        log_interaction(question, cached_answer, cache_hit=True, response_time_ms=elapsed)
-        st.markdown("---")
-        st.markdown(f'<div class="answer-box">{md.markdown(cached_answer)}</div>', unsafe_allow_html=True)
-        st.caption("⚡ Answered instantly from cache")
+        st.session_state.turn_number += 1
+        log_interaction(
+            question=rewritten,
+            answer=cached_answer,
+            cache_hit=True,
+            response_time_ms=elapsed,
+            session_id=st.session_state.session_id,
+            turn_number=st.session_state.turn_number,
+            raw_user_input=raw_input,
+            rewritten_query=rewritten,
+        )
+        with st.chat_message("assistant"):
+            st.markdown(cached_answer)
+            st.caption("⚡ Answered instantly from cache")
+        st.session_state.messages.append({"role": "assistant", "content": cached_answer})
         st.stop()
 
-    # ── Full pipeline — only runs on cache miss ────────────────────────────────
+    # ── Full pipeline ─────────────────────────────────────────────────────────
     with st.status("Looking that up for you! 📚", expanded=False) as status:
-
-        sections = select_sections(question)
+        sections = select_sections(rewritten)
         start_urls = [s["url"] for s in sections]
-        top_pages = explore(question, start_urls, max_depth=3, top_n=3)
+        top_pages = explore(rewritten, start_urls, max_depth=3, top_n=3)
 
         if not top_pages:
             status.update(label="Hmm, couldn't find anything.", state="error")
@@ -265,27 +232,39 @@ if ask and question.strip():
         pages = fetch_pages(top_pages)
         status.update(label="Here you go! 🎉", state="complete", expanded=False)
 
-    st.markdown("---")
-    placeholder = st.empty()
-    answer = ""
-    for chunk in stream_answer(question, pages):
-        answer += chunk
-        placeholder.markdown(answer + "▌")
-        time.sleep(0.02)
-    placeholder.markdown(answer)
+    # ── Stream answer ─────────────────────────────────────────────────────────
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
+        answer = ""
+        for chunk in stream_answer(rewritten, pages, history=history_so_far):
+            answer += chunk
+            placeholder.markdown(answer + "▌")
+            time.sleep(0.02)
+        placeholder.markdown(answer)
+
+        with st.expander("🔗 Sources used"):
+            for p in top_pages:
+                url = p.get("url", "")
+                label = p.get("title", url)
+                if url.startswith("http"):
+                    st.markdown(f"- [{label}]({url})")
+                else:
+                    st.markdown(f"- {label}")
+
+    st.session_state.messages.append({"role": "assistant", "content": answer})
 
     elapsed = int((time.time() - start_time) * 1000)
-    log_interaction(question, answer, cache_hit=False, response_time_ms=elapsed, sources=pages)
-    st.markdown("---")
-
-    with st.expander("🔗 Sources used"):
-        for p in top_pages:
-            url = p.get("url", "")
-            label = p.get("title", url)
-            if url.startswith("http"):
-                st.markdown(f"- [{label}]({url})")
-            else:
-                st.markdown(f"- {label}")
-
-elif ask and not question.strip():
-    st.warning("Hey, don't forget to type your question! 😄")
+    st.session_state.turn_number += 1
+    sections_used = [{"key": s["section_key"], "url": s["url"]} for s in sections]
+    log_interaction(
+        question=rewritten,
+        answer=answer,
+        cache_hit=False,
+        response_time_ms=elapsed,
+        sources=pages,
+        session_id=st.session_state.session_id,
+        turn_number=st.session_state.turn_number,
+        raw_user_input=raw_input,
+        rewritten_query=rewritten,
+        sections_used=sections_used,
+    )
