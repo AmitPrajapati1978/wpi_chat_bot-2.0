@@ -29,6 +29,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
+/* Full page background */
 [data-testid="stAppViewContainer"] {
     background-image: url("PLACEHOLDER_BG");
     background-size: cover;
@@ -42,19 +43,18 @@ st.markdown("""
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.65);
     z-index: 0;
 }
 
+/* Remove card — full page chat layout */
 [data-testid="stMainBlockContainer"] {
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-top: 2rem;
-    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent !important;
+    padding: 1rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 html, body, [class*="css"], p, span, label, div {
@@ -68,30 +68,41 @@ h1, h2, h3 {
 
 .wpi-title {
     color: #AC2B37 !important;
-    font-size: 2.4rem;
+    font-size: 2rem;
     font-weight: 700;
     text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .wpi-subtitle {
-    color: rgba(255,255,255,0.75) !important;
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
+    color: rgba(255,255,255,0.65) !important;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
 }
 
 /* Chat messages */
 [data-testid="stChatMessage"] {
-    background: rgba(255,255,255,0.07) !important;
+    background: rgba(255,255,255,0.08) !important;
     border-radius: 12px !important;
     margin-bottom: 0.5rem !important;
+    backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+/* Chat input bar at bottom */
+[data-testid="stBottom"] {
+    background: rgba(0,0,0,0.5) !important;
+    backdrop-filter: blur(12px) !important;
+    border-top: 1px solid rgba(172,43,55,0.4) !important;
+    padding: 0.75rem 1rem !important;
 }
 
 [data-testid="stChatInput"] textarea {
-    background: rgba(20, 20, 20, 0.75) !important;
+    background: rgba(30, 30, 30, 0.85) !important;
     border: 1px solid rgba(172, 43, 55, 0.6) !important;
     border-radius: 10px !important;
     color: #ffffff !important;
     caret-color: #ffffff !important;
+    font-size: 1rem !important;
 }
 
 [data-testid="stChatInput"] textarea:focus {
@@ -113,9 +124,7 @@ h1, h2, h3 {
     border-radius: 10px !important;
 }
 
-hr {
-    border-color: rgba(255,255,255,0.15) !important;
-}
+hr { border-color: rgba(255,255,255,0.15) !important; }
 
 #MainMenu, footer, header {visibility: hidden;}
 </style>
