@@ -134,6 +134,14 @@ h1, h2, h3 {
     border-radius: 10px !important;
 }
 
+/* Error / warning / info alerts */
+[data-testid="stAlert"] {
+    background: rgba(30,30,30,0.85) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(172,43,55,0.4) !important;
+    color: #ffffff !important;
+}
+
 hr { border-color: rgba(255,255,255,0.15) !important; }
 
 #MainMenu, footer, header {visibility: hidden;}
@@ -158,6 +166,9 @@ if "turn_number" not in st.session_state:
     st.session_state.turn_number = 0
 
 # ── Meta answer ────────────────────────────────────────────────────────────────
+GREETING_KEYWORDS = ("hi", "hello", "hey", "how are you", "good morning", "good evening", "good afternoon", "sup", "howdy")
+GREETING_ANSWER = "Hey! 👋 I'm doing great, thanks for asking! I'm your WPI AI Assistant — ask me anything about programs, courses, clubs, research, or career outcomes at Worcester Polytechnic Institute!"
+
 META_KEYWORDS = ("what can you", "what do you know", "what domains", "what topics",
                  "what questions", "what can i ask", "help me", "what are you")
 
@@ -194,8 +205,16 @@ if raw_input := st.chat_input("Ask me anything about WPI..."):
         st.markdown(raw_input)
     st.session_state.messages.append({"role": "user", "content": raw_input})
 
+    # ── Greeting check ────────────────────────────────────────────────────────
+    q_lower = raw_input.strip().lower()
+    if any(q_lower == kw or q_lower.startswith(kw) for kw in GREETING_KEYWORDS):
+        with st.chat_message("assistant"):
+            st.markdown(GREETING_ANSWER)
+        st.session_state.messages.append({"role": "assistant", "content": GREETING_ANSWER})
+        st.stop()
+
     # ── Meta check ────────────────────────────────────────────────────────────
-    if any(kw in raw_input.strip().lower() for kw in META_KEYWORDS):
+    if any(kw in q_lower for kw in META_KEYWORDS):
         with st.chat_message("assistant"):
             st.markdown(META_ANSWER)
         st.session_state.messages.append({"role": "assistant", "content": META_ANSWER})
