@@ -3,6 +3,8 @@ import time
 import uuid
 import streamlit as st
 
+__version__ = "2.0.0"
+
 
 def get_base64_image(path: str) -> str:
     with open(path, "rb") as f:
