@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 120
+# E402: imports not at top — intentional in app.py (Streamlit setup before imports)
+# E501: line too long — suppressed for files with long LLM prompt strings
+# E226: missing whitespace around operator — style preference in f-strings
+ignore = E402,E501,E226
+exclude =
+    venv,
+    .git,
+    __pycache__,
+    explore_logs.ipynb,
+    qa_cache.json

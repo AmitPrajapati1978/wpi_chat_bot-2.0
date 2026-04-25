@@ -3,9 +3,11 @@ import time
 import uuid
 import streamlit as st
 
+
 def get_base64_image(path: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
+
 
 bg_image = get_base64_image("resources/wpi.jpg")
 from section_selector import select_sections

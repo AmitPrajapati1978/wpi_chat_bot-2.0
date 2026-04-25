@@ -30,7 +30,6 @@ def get_s3():
 
 def _get_nid_url_map() -> dict[str, str]:
     """Lazy-load nid → wpi.edu alias from track-data.csv (cached after first call)."""
-    global _nid_to_url
     if _nid_to_url:
         return _nid_to_url
     try:

@@ -2,7 +2,6 @@ import json
 import os
 import boto3
 import anthropic
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 load_dotenv()
