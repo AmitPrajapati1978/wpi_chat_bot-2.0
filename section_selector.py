@@ -56,6 +56,30 @@ S3_CATEGORIES = {
         "description": "Global and domestic IQP project center locations — where students go to complete their qualifying projects.",
         "prefix": "data/drupal/project_center-data.csv",
     },
+    "tuition_costs": {
+        "description": "WPI tuition, fees, and full cost-of-attendance for undergraduate and graduate students — annual rates, per-credit costs, housing, food, health insurance, and payment due dates.",
+        "prefix": "data/tuition-costs/cost-rate-current.json",
+    },
+    "facts_figures": {
+        "description": "Official WPI statistics — enrollment size, faculty credentials, campus acreage, number of clubs, varsity sports, research expenditure, and other university facts and figures.",
+        "prefix": "data/drupal/facts_and_figures-data.csv",
+    },
+    "scholarships": {
+        "description": "Scholarships and funding opportunities for WPI students — scholarship names, eligibility requirements, application deadlines, required materials, fields of study, and award amounts.",
+        "prefix": "data/drupal/scholarships-data.csv",
+    },
+    "catalyst_blog": {
+        "description": "WPI Graduate & Professional Studies blog — first-person advice on balancing grad school with full-time work, career guides by engineering field, student stories, and application tips.",
+        "prefix": "data/catalyst/posts.json",
+    },
+    "grad_admissions": {
+        "description": "WPI graduate admissions process — application requirements, steps to apply, international applicant guidance, what prospective students worry about most, and frequently unanswered questions.",
+        "prefix": "data/grad-decision/admissions-team-insights/",
+    },
+    "grad_advisors": {
+        "description": "Named WPI graduate enrollment advisors by program — advisor name, title, calendar booking link, and contact info so prospective students can reach a real person.",
+        "prefix": "data/graduate-studies/advisors.csv",
+    },
 }
 
 SYSTEM_PROMPT = """You are an AI assistant helping navigate WPI's knowledge base.

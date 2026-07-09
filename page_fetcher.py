@@ -119,7 +119,7 @@ def _parse_csv(key: str, raw: str) -> dict:
 
     # Fields to skip (internal IDs, timestamps, PII, irrelevant metadata)
     skip_fields = {
-        "nid", "uid", "created", "changed", "status",
+        "nid", "uid", "created", "changed", "status", "body_format", "body_summary",
         "field_image_target_id", "field_tags_target_id",
         "field_announcements_checkbox_value", "field_events_checkbox_value",
         "field_exclude_value", "field_full_bleed_value",
@@ -133,7 +133,10 @@ def _parse_csv(key: str, raw: str) -> dict:
     }
 
     # HTML fields to strip tags from
-    html_fields = {"body_value", "field_description_value", "field_body_value"}
+    html_fields = {
+        "body_value", "field_description_value", "field_body_value",
+        "field_application_materials_value", "field_what_they_are_looking_for_value",
+    }
 
     lines = []
     for row in rows:
@@ -157,7 +160,7 @@ def _parse_csv(key: str, raw: str) -> dict:
 
 
 def _parse_json(key: str, raw: str) -> dict:
-    """Parse a JSON file (e.g. course catalog) into readable text."""
+    """Parse a JSON file into readable text. Handles course catalog, blog posts, and tuition formats."""
     title = key.split("/")[-1].replace("-", " ").replace("_", " ").rsplit(".", 1)[0].title()
 
     try:
@@ -165,7 +168,9 @@ def _parse_json(key: str, raw: str) -> dict:
     except Exception as e:
         return {"url": key, "title": title, "text": raw[:MAX_CHARS], "error": str(e)}
 
-    # Course catalog JSON: list of course objects
+    source_url = key
+
+    # Course catalog: list of course objects
     if isinstance(data, list):
         lines = []
         for item in data:
@@ -179,15 +184,67 @@ def _parse_json(key: str, raw: str) -> dict:
                     lines.append("\n".join(parts))
                     lines.append("---")
         text = "\n".join(lines)
-    elif isinstance(data, dict):
-        text = json.dumps(data, indent=2)
+
+    # Blog posts feed (data/catalyst/posts.json)
+    elif isinstance(data, dict) and isinstance(data.get("posts"), list):
+        source_url = data.get("feed_url", key)
+        lines = []
+        for post in data["posts"]:
+            parts = []
+            if post.get("title"):
+                parts.append(f"Title: {post['title']}")
+            if post.get("categories"):
+                parts.append(f"Topics: {', '.join(post['categories'])}")
+            if post.get("excerpt"):
+                parts.append(f"Summary: {post['excerpt'][:350]}")
+            if post.get("url"):
+                parts.append(f"URL: {post['url']}")
+            if parts:
+                lines.append("\n".join(parts))
+                lines.append("---")
+        text = "\n".join(lines)
+
+    # Tuition / cost-of-attendance JSON (data/tuition-costs/cost-rate-current.json)
+    elif isinstance(data, dict) and "academic_years" in data:
+        urls = data.get("source_urls", [])
+        source_url = urls[0] if urls else key
+        scraped = data.get("scraped_at", "")
+        lines = [f"WPI Tuition & Cost of Attendance (as of {scraped})\n"]
+        for year, ay in data.get("academic_years", {}).items():
+            lines.append(f"=== {year} ===")
+            ug = ay.get("undergraduate", {})
+            if ug:
+                t = ug.get("tuition", {})
+                if t.get("annual_full_time"):
+                    lines.append(f"Undergraduate tuition: ${t['annual_full_time']:,}/year full-time")
+                if t.get("per_credit_part_time"):
+                    lines.append(f"  Part-time: ${t['per_credit_part_time']:,}/credit")
+                fees = ug.get("fees", {})
+                fee_parts = []
+                if fees.get("student_life_annual"):
+                    fee_parts.append(f"Student Life ${fees['student_life_annual']:,}")
+                if fees.get("health_wellness_annual"):
+                    fee_parts.append(f"Health & Wellness ${fees['health_wellness_annual']:,}")
+                if fee_parts:
+                    lines.append(f"UG annual fees: {', '.join(fee_parts)}")
+            grad = ay.get("graduate", {})
+            if grad:
+                gt = grad.get("tuition", {})
+                per_credit = gt.get("general_per_credit") or gt.get("per_credit") or gt.get("per_credit_hour")
+                if per_credit:
+                    lines.append(f"Graduate tuition: ${per_credit:,}/credit (general rate)")
+            hi = ay.get("health_insurance", {})
+            if hi and hi.get("annual_cost"):
+                lines.append(f"Health insurance: ${hi['annual_cost']:,}/year")
+        text = "\n".join(lines)
+
     else:
-        text = str(data)
+        text = json.dumps(data, indent=2)
 
     if len(text) > MAX_CHARS:
         text = text[:MAX_CHARS] + "\n... [content trimmed]"
 
-    return {"url": key, "title": title, "text": text, "error": None}
+    return {"url": source_url, "title": title, "text": text, "error": None}
 
 
 def fetch_page_s3(item: dict) -> dict:
