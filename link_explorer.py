@@ -143,12 +143,13 @@ def explore(question: str, start_refs: list[str], max_depth: int = 3, top_n: int
         final = unique
 
     # Shape output to match the interface fetch_pages() + app.py expect:
-    # {url, text, key}
+    # {url, text, key, query}  — query is forwarded so fetchers can filter large files
     return [
         {
-            "url": item["key"],   # will be replaced with source_url after fetch
+            "url": item["key"],
             "text": item["name"].replace("_", " ").replace("-", " ").rsplit(".", 1)[0],
             "key": item["key"],
+            "query": question,
         }
         for item in final
     ]

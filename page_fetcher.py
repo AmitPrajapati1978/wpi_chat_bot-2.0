@@ -101,10 +101,11 @@ def _parse_markdown(key: str, raw: str) -> dict:
     }
 
 
-def _parse_csv(key: str, raw: str) -> dict:
+def _parse_csv(key: str, raw: str, query: str = "") -> dict:
     """
     Parse a CSV file into readable text.
     Strips HTML from body fields and formats each row as key: value pairs.
+    For the expert profiles CSV, filters rows by query keywords before truncating.
     """
     title = key.split("/")[-1].replace("-", " ").replace("_", " ").rsplit(".", 1)[0].title()
 
@@ -116,6 +117,20 @@ def _parse_csv(key: str, raw: str) -> dict:
 
     if not rows:
         return {"url": key, "title": title, "text": "No data found.", "error": None}
+
+    # For large CSVs with a query, rank rows by keyword relevance before truncating.
+    # Without this, alphabetical truncation hides relevant rows (e.g. "data-science"
+    # advisor cut off before "biochemistry" entries reach MAX_CHARS).
+    if query:
+        search_terms = [w.lower() for w in query.split() if len(w) > 3]
+        if search_terms:
+            def _row_score(row: dict) -> int:
+                blob = " ".join(v for v in row.values() if v and v != "NULL").lower()
+                return sum(1 for t in search_terms if t in blob)
+
+            scored = sorted(rows, key=_row_score, reverse=True)
+            matched = [r for r in scored if _row_score(r) > 0]
+            rows = matched[:8] if matched else scored[:5]
 
     # Fields to skip (internal IDs, timestamps, PII, irrelevant metadata)
     skip_fields = {
@@ -136,6 +151,7 @@ def _parse_csv(key: str, raw: str) -> dict:
     html_fields = {
         "body_value", "field_description_value", "field_body_value",
         "field_application_materials_value", "field_what_they_are_looking_for_value",
+        "expert_bio", "faculty_bio",
     }
 
     lines = []
@@ -251,8 +267,10 @@ def fetch_page_s3(item: dict) -> dict:
     """
     Read one file from S3 and return {url, title, text, error}.
     item must have a 'key' field with the S3 object key.
+    Optional 'query' field is forwarded to parsers that can use it for filtering.
     """
     key = item.get("key") or item.get("url", "")
+    query = item.get("query", "")
 
     try:
         response = get_s3().get_object(Bucket=BUCKET, Key=key)
@@ -263,11 +281,10 @@ def fetch_page_s3(item: dict) -> dict:
     if key.endswith(".md"):
         return _parse_markdown(key, raw)
     elif key.endswith(".csv"):
-        return _parse_csv(key, raw)
+        return _parse_csv(key, raw, query=query)
     elif key.endswith(".json"):
         return _parse_json(key, raw)
     else:
-        # Plain text fallback
         text = raw[:MAX_CHARS]
         return {
             "url": key,
