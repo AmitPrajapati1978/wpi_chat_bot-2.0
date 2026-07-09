@@ -80,6 +80,10 @@ S3_CATEGORIES = {
         "description": "Named WPI graduate enrollment advisors by program — advisor name, title, calendar booking link, and contact info so prospective students can reach a real person.",
         "prefix": "data/graduate-studies/advisors.csv",
     },
+    "expert_profiles": {
+        "description": "WPI faculty expert profiles — professor names, departments, research interests, research areas of expertise, academic bios, and professional affiliations. Use for questions about who works on a topic, which professors specialize in a field, or finding faculty by research area.",
+        "prefix": "data/drupal/expert_profile-data.csv",
+    },
 }
 
 SYSTEM_PROMPT = """You are an AI assistant helping navigate WPI's knowledge base.
