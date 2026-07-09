@@ -122,7 +122,19 @@ def _parse_csv(key: str, raw: str, query: str = "") -> dict:
     # Without this, alphabetical truncation hides relevant rows (e.g. "data-science"
     # advisor cut off before "biochemistry" entries reach MAX_CHARS).
     if query:
-        search_terms = [w.lower() for w in query.split() if len(w) > 3]
+        _STOP_WORDS = {
+            "tell", "more", "about", "what", "which", "where", "when", "does",
+            "have", "this", "that", "with", "from", "they", "will", "been",
+            "their", "there", "your", "much", "some", "such", "than", "into",
+            "over", "also", "only", "then", "very", "just", "like", "know",
+            "make", "come", "give", "same", "well", "want", "look", "here",
+            "help", "find", "show", "need", "work", "time", "year", "them",
+            "same", "take", "good", "many", "most", "these", "those", "please",
+        }
+        search_terms = [
+            w.lower() for w in query.split()
+            if len(w) > 3 and w.lower() not in _STOP_WORDS
+        ]
         if search_terms:
             def _row_score(row: dict) -> int:
                 blob = " ".join(v for v in row.values() if v and v != "NULL").lower()
