@@ -1,3 +1,8 @@
 pytest
 flake8
 numpy
+ragas
+eval_type_backport
+langchain-anthropic
+langchain-huggingface
+datasets
