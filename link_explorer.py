@@ -87,7 +87,10 @@ Return a JSON array of the top {top_n} most relevant file numbers."""
     if start == -1 or end == -1:
         return candidates[:top_n]
 
-    indices = json.loads(raw[start:end + 1])
+    try:
+        indices = json.loads(raw[start:end + 1])
+    except json.JSONDecodeError:
+        return candidates[:top_n]
     selected = []
     for idx in indices:
         if 1 <= idx <= len(candidates):
