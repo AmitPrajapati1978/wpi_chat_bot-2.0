@@ -226,17 +226,17 @@ if raw_input := st.chat_input("Ask me anything about WPI..."):
 
     start_time = time.time()
 
-    # ── Guardrail on raw input — before rewriter ever runs ────────────────────
-    if not check_guardrail(raw_input):
+    # ── Rewrite query first so guardrail sees the full contextualized question ──
+    history_so_far = st.session_state.messages[:-1]
+    rewritten = rewrite_query(history_so_far, raw_input)
+
+    # ── Guardrail on rewritten query ──────────────────────────────────────────
+    if not check_guardrail(rewritten):
         msg = "⚠️ I'm only able to answer questions about WPI — academics, programs, campus life, research, and career outcomes. Please ask me something related to Worcester Polytechnic Institute!"
         with st.chat_message("assistant"):
             st.markdown(msg)
         st.session_state.messages.append({"role": "assistant", "content": msg})
         st.stop()
-
-    # ── Rewrite query if follow-up (only runs if guardrail passed) ────────────
-    history_so_far = st.session_state.messages[:-1]
-    rewritten = rewrite_query(history_so_far, raw_input)
 
     # ── Cache check ───────────────────────────────────────────────────────────
     cached_answer = find_cached_answer(rewritten)

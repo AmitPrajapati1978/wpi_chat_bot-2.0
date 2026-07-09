@@ -157,6 +157,9 @@ def _parse_csv(key: str, raw: str, query: str = "") -> dict:
         # Student PII — names and IDs from project CSVs
         "Creator", "Identifier", "Orcid", "Rights Statement", "License",
         "Date created", "Model",
+        # faculty_bio overlaps with expert_bio; skipping frees ~600 chars per
+        # row so field_education and affiliations fit within MAX_CHARS
+        "faculty_bio",
     }
 
     # HTML fields to strip tags from
